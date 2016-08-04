@@ -26,6 +26,7 @@ import static org.wildfly.swarm.webservices.ws.SimpleWebserviceEndpointIface.SER
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.MalformedURLException;
 import java.net.URL;
 
 import javax.annotation.Resource;
@@ -53,9 +54,6 @@ public class WebserviceClientServlet extends HttpServlet {
 
     static final QName SERVICE_QNAME = new QName(NAMESPACE, SERVICE_NAME);
 
-    @Resource(name = "java:global/ws/simplews")
-    private URL wsdlLocation;
-
     protected SimpleWebserviceEndpointIface webServicePort;
 
     protected void configure(Binding wsBinding) {
@@ -63,9 +61,15 @@ public class WebserviceClientServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
+        URL wsdlLocation = null;
+        try {
+            wsdlLocation = new URL("http://localhost:8080/SimpleService?wsdl");
+        } catch (MalformedURLException e) {
+            throw new ServletException(e);
+        }
+
         logger.info("Using wsdlLocation = {}", wsdlLocation);
         webServicePort = Service.create(wsdlLocation, SERVICE_QNAME).getPort(SimpleWebserviceEndpointIface.class);
-        configure((Binding) webServicePort);
     }
 
     @Override

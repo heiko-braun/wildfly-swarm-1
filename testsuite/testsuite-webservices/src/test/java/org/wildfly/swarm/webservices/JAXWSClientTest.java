@@ -55,6 +55,7 @@ import org.wildfly.swarm.ContainerFactory;
 import org.wildfly.swarm.config.naming.Binding;
 import org.wildfly.swarm.container.Container;
 import org.wildfly.swarm.naming.NamingFraction;
+import org.wildfly.swarm.undertow.UndertowFraction;
 import org.wildfly.swarm.undertow.WARArchive;
 import org.wildfly.swarm.webservices.support.SimpleWSServer;
 import org.wildfly.swarm.webservices.web.WebserviceClientServlet;
@@ -71,21 +72,16 @@ public class JAXWSClientTest  implements ContainerFactory {
 
     private static final String MESSAGE_TO_ECHO = "Lorem ipsum dolor sit amet";
 
-    private static SimpleWSServer wsServer;
-
     public JAXWSClientTest() throws IOException {
-        wsServer = new SimpleWSServer();
-        wsServer.buildAndStartWebService();
     }
 
-    @Deployment(testable = false)
+    @Deployment(testable = true)   // [hb] the main change: tests running in-container
     public static Archive createDeployment() throws IOException {
         System.out.println("Creating deployment");
         final WARArchive warArchive = ShrinkWrap.create(WARArchive.class, "myapp.war")
                 .addClass(WebserviceClientServlet.class)
                 .addClass(WebserviceClientWithHandlerServlet.class)
                 .addClass(SampleSoapHandler.class)
-                .addClass(SimpleWSServer.class)
                 .addClass(SimpleWebserviceEndpointImpl.class)
                 .addClass(SimpleWebserviceEndpointIface.class);
         return warArchive;
@@ -93,9 +89,9 @@ public class JAXWSClientTest  implements ContainerFactory {
 
     public Container newContainer(String... args) throws Exception {
         System.out.println("Building container");
-        return new Container(false)
+        return new Container()
                 .fraction(WebServicesFraction.createDefaultFraction())
-                .fraction(buildNamingFraction());
+                .fraction(UndertowFraction.createDefaultFraction());
     }
 
 
@@ -132,15 +128,5 @@ public class JAXWSClientTest  implements ContainerFactory {
         }
     }
 
-    private NamingFraction buildNamingFraction() throws MalformedURLException {
-        return new NamingFraction().binding(createServerUrlBinding());
-    }
-
-    private Binding createServerUrlBinding() {
-        return new Binding("java:global/ws/simplews")
-                .bindingType(Binding.BindingType.SIMPLE)
-                .type(URL.class.getCanonicalName())
-                .value(wsServer.getServerURL().toExternalForm() + "?wsdl");
-    }
 
 }
