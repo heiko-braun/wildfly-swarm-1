@@ -56,6 +56,7 @@ import org.wildfly.swarm.bootstrap.util.TempFileManager;
 import org.wildfly.swarm.internal.FileSystemLayout;
 import org.wildfly.swarm.spi.api.DependenciesContainer;
 import org.wildfly.swarm.spi.api.JARArchive;
+import org.wildfly.swarm.spi.api.JBossDeploymentStructureContainer;
 import org.wildfly.swarm.spi.api.MarkerContainer;
 import org.wildfly.swarm.spi.api.SwarmProperties;
 import org.wildfly.swarm.spi.api.internal.SwarmInternalProperties;
@@ -70,6 +71,8 @@ public class UberjarSimpleContainer implements SimpleContainer {
     private final ContainerContext containerContext;
 
     private final DeploymentContext deploymentContext;
+
+    boolean appModule = System.getProperty("swarm.appmodule.enabled", "").equals("true");
 
     public UberjarSimpleContainer(ContainerContext containerContext, DeploymentContext deploymentContext, Class<?> testClass) {
         this.containerContext = containerContext;
@@ -312,9 +315,18 @@ public class UberjarSimpleContainer implements SimpleContainer {
 
     private <C extends LibraryContainer<?> & ManifestContainer<?>> void munge(C container, DeclaredDependencies declaredDependencies) {
 
-        for (ArtifactSpec artifact : declaredDependencies.getExplicitDependencies()) { // [hb] TODO: this should actually be transient deps
-            assert artifact.file != null : "artifact.file cannot be null at this point: " + artifact;
-            container.addAsLibrary(artifact.file);
+        if (appModule) {
+            if (container instanceof JBossDeploymentStructureContainer) {
+                ((JBossDeploymentStructureContainer) container).addModule(BuildTool.APP_DEPENDENCY_MODULE);
+            } else {
+                throw new RuntimeException("Cannot allDependencies() to archive type " + container.getClass());
+            }
+        } else {
+
+            for (ArtifactSpec artifact : declaredDependencies.getExplicitDependencies()) { // [hb] TODO: this should actually be transient deps
+                assert artifact.file != null : "artifact.file cannot be null at this point: " + artifact;
+                container.addAsLibrary(artifact.file);
+            }
         }
         try {
             MarkerContainer.addMarker(container, "org.wildfly.swarm.allDependencies.added");
